@@ -62,6 +62,9 @@ def build_career_ladder(request: ProgressRequest, session_id: str) -> ProgressRe
         for r in data["ladder"]
     ]
 
+    if not ladder:
+        raise ValueError(f"Career ladder inference returned no results for role: {request.current_role}")
+
     return ProgressResponse(
         current_role=request.current_role,
         immediate_next=ladder[0],

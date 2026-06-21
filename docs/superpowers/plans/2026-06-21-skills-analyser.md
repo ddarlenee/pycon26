@@ -16,7 +16,7 @@
 - SkillsFuture Excel files placed in `backend/data/skillsfuture/` (downloaded manually from jobsandskills.skillsfuture.gov.sg/skills-frameworks)
 - CORS: backend allows `http://localhost:5173`
 - Backend port: 8000 | Frontend port: 5173
-- All API JSON keys: camelCase (FastAPI `alias_generator`)
+- All API JSON keys: snake_case (no alias_generator — frontend TypeScript types also use snake_case)
 - **Read-only data (SkillsFuture):** loaded into in-memory dict at startup — never re-read from disk per request
 - **User session data:** persisted as `backend/sessions/<session_id>.json` on disk — enables resume-pathway feature
 - No external database required

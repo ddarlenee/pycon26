@@ -23,11 +23,17 @@ def test_analyse_gaps_identifies_missing():
     assert "Python" not in gap_names
     assert "SQL" not in gap_names
 
-def test_coverage_score_format():
+def test_analyse_gaps_sorts_essential_first():
+    gaps, _ = analyse_gaps(USER_SKILLS, TIERED_SKILLS)
+    tier_order = {"Essential": 0, "Important": 1, "Nice-to-have": 2}
+    orders = [tier_order[g.tier] for g in gaps]
+    assert orders == sorted(orders)
+
+def test_coverage_score_values():
     _, score = analyse_gaps(USER_SKILLS, TIERED_SKILLS)
-    assert "/" in score.essential
-    assert "/" in score.important
-    assert "/" in score.nice_to_have
+    assert score.essential == "2/2"
+    assert score.important == "0/1"
+    assert score.nice_to_have == "0/1"
 
 MOCK_STEPS_JSON = json.dumps({
     "next_steps": [

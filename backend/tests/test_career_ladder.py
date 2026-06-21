@@ -52,3 +52,16 @@ def test_build_career_ladder_milestone_count():
             with patch("services.career_ladder.skillsfuture.get_skills_for_role", return_value=[]):
                 result = build_career_ladder(req, "test-session")
     assert len(result.immediate_next.milestones) == 2
+
+def test_build_career_ladder_empty_ladder_raises():
+    empty_ladder_json = json.dumps({
+        "long_term_destination": "Principal Data Scientist",
+        "ladder": []
+    })
+    req = ProgressRequest(current_role="Data Analyst", user_skill_names=["Python"])
+    with patch("services.career_ladder.openai_client.chat.completions.create",
+               return_value=make_mock_completion(empty_ladder_json)):
+        with patch("services.career_ladder.log_interaction"):
+            with patch("services.career_ladder.skillsfuture.get_skills_for_role", return_value=[]):
+                with pytest.raises(ValueError, match="Career ladder inference returned no results"):
+                    build_career_ladder(req, "test-session")
