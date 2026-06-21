@@ -8,7 +8,7 @@ from services.skill_extractor import extract_skills
 from services.skill_ranker import rank_skills
 from services.gap_analyser import analyse_gaps
 from services.next_steps import generate_next_steps
-from services.session_store import save_session
+from services.session_store import load_session, save_session
 from services.interaction_logger import log_interaction
 
 router = APIRouter()
@@ -63,5 +63,7 @@ def analyse(request: AnalyseRequest):
         gaps=gaps,
         next_steps=next_steps,
     )
-    save_session(session_id, {"analyse": result.model_dump()})
+    existing = load_session(session_id) or {}
+    existing["analyse"] = result.model_dump()
+    save_session(session_id, existing)
     return result

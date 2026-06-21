@@ -33,7 +33,7 @@ def make_mock_completion(content: str):
     return mock
 
 def test_build_career_ladder_returns_progress_response():
-    req = ProgressRequest(current_role="Data Analyst", user_skill_names=["Python", "SQL"])
+    req = ProgressRequest(session_id="test-session", current_role="Data Analyst", user_skill_names=["Python", "SQL"])
     with patch("services.career_ladder.openai_client.chat.completions.create",
                return_value=make_mock_completion(MOCK_LADDER_JSON)):
         with patch("services.career_ladder.log_interaction"):
@@ -45,7 +45,7 @@ def test_build_career_ladder_returns_progress_response():
     assert result.long_term_destination == "Principal Data Scientist"
 
 def test_build_career_ladder_milestone_count():
-    req = ProgressRequest(current_role="Data Analyst", user_skill_names=["Python"])
+    req = ProgressRequest(session_id="test-session", current_role="Data Analyst", user_skill_names=["Python"])
     with patch("services.career_ladder.openai_client.chat.completions.create",
                return_value=make_mock_completion(MOCK_LADDER_JSON)):
         with patch("services.career_ladder.log_interaction"):
@@ -58,7 +58,7 @@ def test_build_career_ladder_empty_ladder_raises():
         "long_term_destination": "Principal Data Scientist",
         "ladder": []
     })
-    req = ProgressRequest(current_role="Data Analyst", user_skill_names=["Python"])
+    req = ProgressRequest(session_id="test-session", current_role="Data Analyst", user_skill_names=["Python"])
     with patch("services.career_ladder.openai_client.chat.completions.create",
                return_value=make_mock_completion(empty_ladder_json)):
         with patch("services.career_ladder.log_interaction"):

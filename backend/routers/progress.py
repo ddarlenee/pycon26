@@ -7,9 +7,8 @@ router = APIRouter()
 
 @router.post("/progress", response_model=ProgressResponse)
 def get_progress(request: ProgressRequest):
-    session_id = "progress-" + request.current_role.replace(" ", "-").lower()
-    result = build_career_ladder(request, session_id)
-    existing = load_session(session_id) or {}
+    result = build_career_ladder(request, request.session_id)
+    existing = load_session(request.session_id) or {}
     existing["progress"] = result.model_dump()
-    save_session(session_id, existing)
+    save_session(request.session_id, existing)
     return result

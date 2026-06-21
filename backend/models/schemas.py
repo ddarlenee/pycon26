@@ -54,6 +54,7 @@ class CareerRung(BaseModel):
     milestones: list[Milestone]
 
 class ProgressRequest(BaseModel):
+    session_id: str
     current_role: str
     user_skill_names: list[str]
 
