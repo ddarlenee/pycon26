@@ -21,7 +21,8 @@ export default function CareerProgressionPage() {
   useEffect(() => {
     if (!analysisResult) { navigate('/'); return }
     if (!progressResult) mutation.mutate()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analysisResult, progressResult, navigate])
 
   if (!analysisResult) return null
 
