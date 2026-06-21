@@ -27,3 +27,19 @@
 - `openai` package was not installed; installed `openai==2.43.0` during implementation.
 - All OpenAI calls are mocked in tests — no real API calls made.
 - One pre-existing Pydantic V2 deprecation warning (class-based config in `config.py`) is unrelated to this task.
+
+## Code Review Fixes (Commit 57e313c)
+Applied three code review issues to backend/:
+
+**Fix 1: career_ladder.py** — Added guard against empty ladder
+- After building `ladder` list from `data["ladder"]`, check `if not ladder:` and raise `ValueError`
+- Prevents IndexError on `ladder[0]` when API returns no results
+
+**Fix 2: test_gap_analyser.py** — Added test for gap sort order
+- New test `test_analyse_gaps_sorts_essential_first()` verifies gaps are sorted Essential → Important → Nice-to-have
+
+**Fix 3: test_gap_analyser.py** — Replaced coverage score test with exact value assertions
+- Replaced `test_coverage_score_format()` with `test_coverage_score_values()`
+- Asserts exact values: essential="2/2", important="0/1", nice_to_have="0/1"
+
+**Test Results:** 18/18 passing (16 prior + 2 new tests added)
