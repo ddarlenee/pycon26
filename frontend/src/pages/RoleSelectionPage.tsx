@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useSessionStore } from '../store/useSessionStore'
@@ -28,10 +28,11 @@ export default function RoleSelectionPage() {
     },
   })
 
-  if (!sessionId || !resumeText) {
-    navigate('/')
-    return null
-  }
+  useEffect(() => {
+    if (!sessionId || !resumeText) navigate('/')
+  }, [sessionId, resumeText, navigate])
+
+  if (!sessionId || !resumeText) return null
 
   return (
     <div className="max-w-2xl mx-auto mt-16 p-8">

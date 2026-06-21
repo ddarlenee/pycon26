@@ -1,5 +1,5 @@
 import json
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from openai import OpenAI
 from config import settings
 from models.schemas import AnalyseRequest, AnalyseResponse
@@ -36,34 +36,41 @@ def _infer_top_roles(resume_text: str, session_id: str) -> list[str]:
 
 @router.post("/analyse", response_model=AnalyseResponse)
 def analyse(request: AnalyseRequest):
-    session_id = request.session_id
+    try:
+        session_id = request.session_id
 
-    if request.target_role:
-        target_roles = [request.target_role]
-    else:
-        target_roles = _infer_top_roles(request.resume_text, session_id)
+        if request.target_role:
+            target_roles = [request.target_role]
+        else:
+            target_roles = _infer_top_roles(request.resume_text, session_id)
 
-    primary_role = target_roles[0]
-    user_skills = extract_skills(request.resume_text, session_id)
+        primary_role = target_roles[0]
+        user_skills = extract_skills(request.resume_text, session_id)
 
-    role_skill_names = skillsfuture.get_skills_for_role(primary_role)
-    if not role_skill_names:
-        role_skill_names = [s.name for s in user_skills[:10]]
-    tiered_skills = rank_skills(primary_role, role_skill_names, session_id)
+        role_skill_names = skillsfuture.get_skills_for_role(primary_role)
+        if not role_skill_names:
+            role_skill_names = [s.name for s in user_skills[:10]]
+        tiered_skills = rank_skills(primary_role, role_skill_names, session_id)
 
-    gaps, coverage = analyse_gaps(user_skills, tiered_skills)
-    next_steps = generate_next_steps(primary_role, gaps, session_id)
+        gaps, coverage = analyse_gaps(user_skills, tiered_skills)
+        next_steps = generate_next_steps(primary_role, gaps, session_id)
 
-    result = AnalyseResponse(
-        session_id=session_id,
-        target_roles=target_roles,
-        user_skills=user_skills,
-        tiered_role_skills=tiered_skills,
-        coverage_score=coverage,
-        gaps=gaps,
-        next_steps=next_steps,
-    )
-    existing = load_session(session_id) or {}
-    existing["analyse"] = result.model_dump()
-    save_session(session_id, existing)
-    return result
+        result = AnalyseResponse(
+            session_id=session_id,
+            target_roles=target_roles,
+            user_skills=user_skills,
+            tiered_role_skills=tiered_skills,
+            coverage_score=coverage,
+            gaps=gaps,
+            next_steps=next_steps,
+        )
+        existing = load_session(session_id) or {}
+        existing["analyse"] = result.model_dump()
+        save_session(session_id, existing)
+        return result
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=502, detail=f"AI response parse error: {e}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

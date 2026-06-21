@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSessionStore } from '../store/useSessionStore'
 import SkillCard from '../components/SkillCard'
@@ -9,10 +10,11 @@ export default function GapDashboardPage() {
   const navigate = useNavigate()
   const { analysisResult } = useSessionStore()
 
-  if (!analysisResult) {
-    navigate('/')
-    return null
-  }
+  useEffect(() => {
+    if (!analysisResult) navigate('/')
+  }, [analysisResult, navigate])
+
+  if (!analysisResult) return null
 
   const { target_roles, user_skills, tiered_role_skills, coverage_score, gaps, next_steps } = analysisResult
 

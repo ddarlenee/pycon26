@@ -15,7 +15,10 @@ async def upload_resume(
     session_id = str(uuid.uuid4())
     if file:
         pdf_bytes = await file.read()
-        resume_text = parse_pdf(pdf_bytes)
+        try:
+            resume_text = parse_pdf(pdf_bytes)
+        except ValueError as e:
+            return JSONResponse(status_code=400, content={"detail": str(e)})
     elif text:
         resume_text = parse_text(text)
     else:
