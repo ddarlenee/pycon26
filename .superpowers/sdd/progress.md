@@ -6,13 +6,7 @@
 - [x] Task 3: Interaction logger (acf9162..f27894d, review clean)
 - [x] Task 3.5: Session store (acf9162..f27894d, review clean, Minor: ValueError 400 handling + hardcoded sessions/ path)
 - [x] Task 4: Resume parser + /upload (acf9162..f27894d, review clean)
-- [ ] Task 5: Skill extractor service (OpenAI)
-- [ ] Task 6: Skill ranker service (OpenAI)
-- [ ] Task 7: Gap analyser + next steps generator
-- [ ] Task 8: Career ladder service (OpenAI)
-- [ ] Task 9: /analyse + /roles + /progress endpoints
-- [ ] Task 10: Frontend scaffold
-- [ ] Task 11: Zustand store + API client layer
+- [x] Task 5-8: OpenAI service layer (f27894d..57e313c, review clean after fixes)
+- [x] Task 9: all endpoints (57e313c..9f005dc, review clean after fixes)
+- [x] Task 10+11: frontend scaffold + store + API client (9f005dc..315c2db, review clean)
 - [ ] Task 12: Upload page + Role selection page
-- [ ] Task 13: Gap dashboard page
-- [ ] Task 14: Career progression page
