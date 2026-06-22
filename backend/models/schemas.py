@@ -14,6 +14,7 @@ class TieredSkill(BaseModel):
     name: str
     tier: str  # "Essential" | "Important" | "Nice-to-have"
     reasoning: str
+    matched_by: list[str] = []  # user skill(s) that satisfy this requirement
 
 class GapItem(BaseModel):
     skill: str

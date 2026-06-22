@@ -43,10 +43,13 @@ DEMO_DATA: dict[str, list[str]] = {
     ],
 }
 
+
 class SkillsFutureLoader:
     def __init__(self):
         self._role_index: dict[str, list[str]] = {}
         self._all_roles: list[str] = []
+        # (role_lower, skill_lower) -> raw proficiency string e.g. "3", "Advanced"
+        self._proficiency_index: dict[tuple[str, str], str] = {}
 
     def load(self):
         data_dir = Path(settings.skillsfuture_data_dir)
@@ -60,7 +63,10 @@ class SkillsFutureLoader:
             logger.warning("Excel files found but no roles extracted — using demo data")
             self.seed_demo_data()
         self._all_roles = sorted(self._role_index.keys())
-        logger.info(f"Loaded {len(self._all_roles)} roles from SkillsFuture data")
+        logger.info(
+            f"Loaded {len(self._all_roles)} roles, "
+            f"{len(self._proficiency_index)} proficiency entries"
+        )
 
     def seed_demo_data(self):
         self._role_index = {k: list(v) for k, v in DEMO_DATA.items()}
@@ -69,24 +75,32 @@ class SkillsFutureLoader:
     def _load_file(self, path: Path):
         try:
             xl = pd.ExcelFile(path)
-            # SkillsFuture Skills Framework dataset — primary sheet
             if "Job Role_TCS_CCS" in xl.sheet_names:
-                df = pd.read_excel(path, sheet_name="Job Role_TCS_CCS")
-                if "Job Role" in df.columns and "TSC_CCS Title" in df.columns:
-                    for _, row in df.iterrows():
-                        role = str(row["Job Role"]).strip()
-                        skill = str(row["TSC_CCS Title"]).strip()
-                        if role and skill and role != "nan" and skill != "nan":
-                            self._role_index.setdefault(role, [])
-                            if skill not in self._role_index[role]:
-                                self._role_index[role].append(skill)
-                    return
-            # Generic fallback for other Excel formats
+                self._load_role_skills(xl, path)
+                return
             for sheet_name in xl.sheet_names:
                 df = pd.read_excel(path, sheet_name=sheet_name, header=None)
                 self._extract_pairs(df.fillna("").astype(str))
         except Exception as e:
             logger.error(f"Failed to load {path.name}: {e}")
+
+    def _load_role_skills(self, xl: pd.ExcelFile, path: Path):
+        df = pd.read_excel(path, sheet_name="Job Role_TCS_CCS")
+        if not {"Job Role", "TSC_CCS Title"}.issubset(df.columns):
+            return
+        has_level = "Proficiency Level" in df.columns
+        for _, row in df.iterrows():
+            role = str(row["Job Role"]).strip()
+            skill = str(row["TSC_CCS Title"]).strip()
+            if not role or not skill or role == "nan" or skill == "nan":
+                continue
+            self._role_index.setdefault(role, [])
+            if skill not in self._role_index[role]:
+                self._role_index[role].append(skill)
+            if has_level:
+                raw = str(row["Proficiency Level"]).strip()
+                if raw and raw != "nan":
+                    self._proficiency_index[(role.lower(), skill.lower())] = raw
 
     def _extract_pairs(self, df: pd.DataFrame):
         role_keywords = {"job role", "role title", "occupation", "job title"}
@@ -94,7 +108,6 @@ class SkillsFutureLoader:
         for col_idx in range(len(df.columns)):
             header = df.iloc[0, col_idx].lower()
             if any(kw in header for kw in role_keywords):
-                # Prefer a column explicitly named as a skill title over col+1
                 skill_col = col_idx + 1
                 for c in range(len(df.columns)):
                     if any(kw in df.iloc[0, c].lower() for kw in skill_keywords):
@@ -119,5 +132,9 @@ class SkillsFutureLoader:
 
     def get_skills_for_role(self, role: str) -> list[str]:
         return self._role_index.get(role, [])
+
+    def get_proficiency(self, role: str, skill: str) -> str | None:
+        """Return the raw proficiency label for a role+skill, e.g. '3' or 'Advanced'."""
+        return self._proficiency_index.get((role.lower(), skill.lower()))
 
 skillsfuture = SkillsFutureLoader()

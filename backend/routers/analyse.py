@@ -50,9 +50,20 @@ def analyse(request: AnalyseRequest):
         role_skill_names = skillsfuture.get_skills_for_role(primary_role)
         if not role_skill_names:
             role_skill_names = [s.name for s in user_skills[:10]]
-        tiered_skills = rank_skills(primary_role, role_skill_names, session_id)
 
-        gaps, coverage = analyse_gaps(user_skills, tiered_skills)
+        skills_with_proficiency = [
+            (name, skillsfuture.get_proficiency(primary_role, name))
+            for name in role_skill_names
+        ]
+        tiered_skills = rank_skills(primary_role, skills_with_proficiency, session_id)
+
+        gaps, coverage, matches_map = analyse_gaps(user_skills, tiered_skills, session_id)
+
+        # Annotate which user skills satisfied each role skill
+        tiered_skills = [
+            ts.model_copy(update={"matched_by": matches_map.get(ts.name, [])})
+            for ts in tiered_skills
+        ]
         next_steps = generate_next_steps(primary_role, gaps, session_id)
 
         result = AnalyseResponse(

@@ -39,7 +39,7 @@ export default function GapDashboardPage() {
       </div>
 
       <div className="mb-8">
-        <SkillRadarChart userSkills={user_skills} roleSkills={tiered_role_skills} />
+        <SkillRadarChart roleSkills={tiered_role_skills} />
       </div>
 
       <div className="grid grid-cols-3 gap-6">

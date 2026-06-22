@@ -8,6 +8,7 @@ export interface TieredSkill {
   name: string
   tier: 'Essential' | 'Important' | 'Nice-to-have'
   reasoning: string
+  matched_by: string[]
 }
 
 export interface GapItem {
