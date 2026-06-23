@@ -1,5 +1,5 @@
 # Career Stage Gating — Design Spec
-_Date: 2026-06-24_
+_Date: 2026-06-24 (revised)_
 
 ## Problem
 
@@ -8,79 +8,173 @@ Users can currently click "Start now" on any career ladder rung — including di
 ## Goal
 
 Gate progression between career stages so that:
-1. The user must check off **all** `skill_delta` items on the immediate next rung before "Start now" unlocks.
-2. Distant future rungs (the `full_ladder`) cannot be jumped to at all — they are permanently locked until the user has sequentially progressed through the immediate next role.
+1. Each `skill_delta` item on the immediate next rung has 1–2 concrete, actionable learning steps.
+2. The user must check off **all steps for all skills** before "Start now" unlocks.
+3. Distant future rungs (the `full_ladder`) cannot be jumped to at all — permanently locked until the user progresses through each stage sequentially.
 
 ---
 
 ## Scope
 
 **In scope:**
-- `CareerLadder.tsx` — all UI and state changes live here
-- No backend changes
-- No persistence across sessions (checked state resets on page reload)
+- `backend/models/schemas.py` — add `CareerNextStep` model; add `next_steps` to `CareerRung`
+- `backend/services/career_ladder.py` — update LLM prompt to generate per-skill steps
+- `frontend/src/types.ts` — add `CareerNextStep`; add `next_steps` to `CareerRung`
+- `frontend/src/components/CareerLadder.tsx` — checkbox UI, progression gate
 
 **Out of scope:**
-- Verified skill evidence (self-reported checkboxes, consistent with HistoryPage)
-- Persisting checkbox state across sessions or users
+- Persisting checked state across sessions (self-reported, resets on reload — consistent with HistoryPage)
+- Verified skill evidence
+- Changes to HistoryPage or GapDashboardPage
 
 ---
 
-## Architecture
+## Backend Changes
 
-All new state is local to `CareerLadder.tsx`. No new API calls, no store changes.
+### New model: `CareerNextStep`
+
+```python
+class CareerNextStep(BaseModel):
+    skill: str       # matches a skill_delta entry
+    action: str      # full actionable text, e.g. "Complete MLOps Fundamentals on Coursera"
+    summary: str = ""  # optional short one-liner
+```
+
+### Updated model: `CareerRung`
+
+```python
+class CareerRung(BaseModel):
+    role: str
+    transferability_score: int
+    skill_delta: list[str]
+    why_good_fit: str
+    milestones: list[Milestone]
+    next_steps: list[CareerNextStep] = []   # ← new
+```
+
+### Updated LLM prompt (`career_ladder.py`)
+
+The system prompt is extended to generate `next_steps` for **the immediate next rung only** (closest role). Distant rungs get an empty list to keep token usage low.
+
+New JSON shape returned by LLM:
+```json
+{
+  "long_term_destination": "...",
+  "ladder": [
+    {
+      "role": "...",
+      "transferability_score": 0,
+      "skill_delta": ["MLOps", "Data Pipeline Design"],
+      "why_good_fit": "...",
+      "milestones": [...],
+      "next_steps": [
+        {"skill": "MLOps", "action": "Complete the MLOps Fundamentals course on Coursera", "summary": "MLOps Fundamentals — Coursera"},
+        {"skill": "MLOps", "action": "Deploy a model end-to-end using a CI/CD pipeline on GitHub Actions", "summary": "Model deployment via CI/CD"},
+        {"skill": "Data Pipeline Design", "action": "Design and document an ETL pipeline for a sample dataset using Apache Airflow", "summary": "ETL pipeline with Airflow"}
+      ]
+    },
+    {
+      "role": "...",
+      "next_steps": []
+    }
+  ]
+}
+```
+
+Rules given to the LLM:
+- Generate `next_steps` only for the **first (closest) rung**; leave it empty for all others.
+- Provide 1–2 steps per `skill_delta` item.
+- Each step must reference a specific platform, course, project, or tool.
+- `summary` is a ≤8-word version of `action`.
+
+---
+
+## Frontend Changes
+
+### `types.ts`
 
 ```ts
-const [checked, setChecked] = useState<Set<string>>(new Set())
-const allChecked =
-  immediateNext.skill_delta.length === 0 ||
-  checked.size >= immediateNext.skill_delta.length
+export interface CareerNextStep {
+  skill: string
+  action: string
+  summary?: string
+}
+
+export interface CareerRung {
+  role: string
+  transferability_score: number
+  skill_delta: string[]
+  why_good_fit: string
+  milestones: Milestone[]
+  next_steps: CareerNextStep[]   // ← new
+}
 ```
 
-- If `skill_delta` is empty the gate is open immediately (no artificial friction).
-- Toggling a checkbox adds/removes the skill name from `checked`.
-- `allChecked` drives whether "Start now" is enabled.
+### `CareerLadder.tsx`
+
+**New state:**
+```ts
+const [checkedSteps, setCheckedSteps] = useState<Set<string>>(new Set())
+```
+
+Steps are keyed as `"${skill}::${stepIndex}"` to uniquely identify each.
+
+**Gate logic:**
+```ts
+const totalSteps = immediateNext.next_steps.length
+const allChecked = totalSteps === 0 || checkedSteps.size >= totalSteps
+```
+
+If `next_steps` is empty (no delta or backend returned none), gate is open immediately.
+
+**Skill confirmed** = all steps for that skill are checked:
+```ts
+function isSkillConfirmed(skill: string): boolean {
+  const steps = immediateNext.next_steps.filter(s => s.skill === skill)
+  return steps.length > 0 && steps.every((_, i) => checkedSteps.has(`${skill}::${i}`))
+}
+```
 
 ---
 
-## UI Changes
+## UI
 
-### Immediate next card
-
-**Before:** `skill_delta` items rendered as static blue tags.
-
-**After:** Each item rendered as an interactive checkbox row.
+### Immediate next card — skill_delta with steps
 
 ```
-New skills you'll need:     2 / 4 confirmed
-☑ Python                    ← checked: strikethrough + muted text
-☑ Machine Learning
-☐ MLOps                     ← unchecked: normal text
-☐ Data Pipeline Design
-
-[🔒 Start now — check off all skills first]   ← locked (grayed, disabled)
-[✓ Start now →]                               ← unlocked (blue, enabled)
+New skills you'll need:            1 / 3 confirmed
+─────────────────────────────────────────────────
+☑ MLOps                            ← skill confirmed (all steps checked)
+    ☑ MLOps Fundamentals — Coursera
+    ☑ Model deployment via CI/CD
+☐ Data Pipeline Design             ← skill not confirmed
+    ☐ ETL pipeline with Airflow
+☐ Python
+    ☐ Build 2 data scripts with pandas and numpy
+─────────────────────────────────────────────────
+[🔒 Start now — complete all steps first]    ← locked (grayed, disabled)
 ```
 
-- A counter `X / Y confirmed` sits next to the section header.
-- Checked items render with strikethrough and muted text (mirrors HistoryPage visual language).
-- When locked: button is grayed with a lock icon; `title` tooltip reads "Check off all skills above to unlock".
-- When `startingRole` spinner is active: checkboxes are disabled (same `disabled={isAny}` guard already in use).
+When all confirmed:
+```
+[✓ Start now →]                              ← blue, enabled
+```
+
+- Confirmed skill label: strikethrough + muted text
+- Checked step: strikethrough + muted text (mirrors HistoryPage)
+- Counter `X / Y confirmed` next to section header (Y = number of distinct skills with steps)
+- When `startingRole` spinner active: all checkboxes disabled
 
 ### Full ladder rungs (distant stages)
 
-**Before:** Hover-reveal "Start now" button (small, `size="sm"`).
-
-**After:** "Start now" button removed. A small locked chip replaces it:
+Hover "Start now" button removed. Replaced with a static locked chip:
 
 ```
 Senior ML Engineer    42% transferable
 [🔒 Complete Data Scientist first]
 ```
 
-- The chip is always visible (not hover-only).
-- The hover tooltip for `why_good_fit` and skill preview is retained.
-- No path exists to jump a stage.
+Hover tooltip (`why_good_fit` + skill preview) is retained. No action possible.
 
 ---
 
@@ -88,11 +182,11 @@ Senior ML Engineer    42% transferable
 
 | Case | Behaviour |
 |---|---|
-| `skill_delta` is empty for immediateNext | Gate open immediately; no checkboxes shown |
-| User unchecks a previously checked item | Counter decrements; button re-locks |
-| `startingRole` spinner active | All checkboxes disabled |
-| Full ladder rung has empty `skill_delta` | Still locked — gate is the role, not the delta |
-| `progressResult` not yet loaded | Component not rendered; no edge case |
+| `next_steps` empty for immediateNext | Gate open; no checklist shown; "Start now" enabled |
+| `skill_delta` item has no matching steps | That skill has no checkbox row; doesn't block gate |
+| User unchecks a step | Counter decrements; button re-locks |
+| `startingRole` spinner active | Checkboxes disabled |
+| Full ladder rung with empty `skill_delta` | Still locked — gate is the role, not the delta |
 
 ---
 
@@ -100,6 +194,7 @@ Senior ML Engineer    42% transferable
 
 | File | Change |
 |---|---|
-| `frontend/src/components/CareerLadder.tsx` | Add checkbox state, replace delta tags, lock full-ladder rungs |
-
-No other files require changes.
+| `backend/models/schemas.py` | Add `CareerNextStep`; add `next_steps` to `CareerRung` |
+| `backend/services/career_ladder.py` | Update LLM system prompt and JSON parsing |
+| `frontend/src/types.ts` | Add `CareerNextStep`; add `next_steps` to `CareerRung` |
+| `frontend/src/components/CareerLadder.tsx` | Checkbox UI, gate logic, lock full-ladder rungs |
