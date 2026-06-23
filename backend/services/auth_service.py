@@ -1,27 +1,85 @@
+import json
+import uuid
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 from jose import jwt, JWTError
 from config import settings
 
+ALGORITHM = "HS256"
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+USERS_FILE = Path(__file__).parent.parent / "data" / "users.json"
 
 
-def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+def _load_users() -> dict:
+    if not USERS_FILE.exists():
+        USERS_FILE.parent.mkdir(exist_ok=True)
+        return {}
+    return json.loads(USERS_FILE.read_text())
 
 
-def create_token(email: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(hours=settings.jwt_expire_hours)
-    return jwt.encode({"sub": email, "exp": expire}, settings.jwt_secret, algorithm="HS256")
+def _save_users(users: dict):
+    USERS_FILE.write_text(json.dumps(users, indent=2))
 
 
-def decode_token(token: str) -> str | None:
+def register_user(email: str, password: str, name: str) -> dict:
+    users = _load_users()
+    if email in users:
+        raise ValueError("Email already registered")
+    user_id = str(uuid.uuid4())
+    users[email] = {
+        "id": user_id,
+        "email": email,
+        "name": name,
+        "hashed_password": pwd_context.hash(password),
+        "history": [],
+    }
+    _save_users(users)
+    return {"id": user_id, "email": email, "name": name}
+
+
+def login_user(email: str, password: str) -> dict:
+    users = _load_users()
+    user = users.get(email)
+    if not user or not pwd_context.verify(password, user["hashed_password"]):
+        raise ValueError("Invalid email or password")
+    return {"id": user["id"], "email": email, "name": user["name"]}
+
+
+def create_token(user: dict) -> str:
+    payload = {
+        "sub": user["email"],
+        "name": user["name"],
+        "id": user["id"],
+        "exp": datetime.now(timezone.utc) + timedelta(hours=settings.jwt_expire_hours),
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM)
+
+
+def decode_token(token: str) -> dict:
     try:
-        payload = jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
-        return payload.get("sub")
+        return jwt.decode(token, settings.jwt_secret, algorithms=[ALGORITHM])
     except JWTError:
-        return None
+        raise ValueError("Invalid or expired token")
+
+
+def save_analysis(email: str, role: str, coverage: dict, gaps: list):
+    users = _load_users()
+    if email not in users:
+        return
+    entry = {
+        "id": str(uuid.uuid4()),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "role": role,
+        "coverage": coverage,
+        "gaps": [g["skill"] for g in gaps[:5]],
+    }
+    users[email]["history"].append(entry)
+    _save_users(users)
+
+
+def get_history(email: str) -> list:
+    users = _load_users()
+    return users.get(email, {}).get("history", [])

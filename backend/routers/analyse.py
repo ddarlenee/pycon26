@@ -10,7 +10,7 @@ from services.gap_analyser import analyse_gaps
 from services.next_steps import generate_next_steps
 from services.session_store import load_session, save_session
 from services.interaction_logger import log_interaction
-from services.auth_service import decode_token
+from services.auth_service import decode_token, save_analysis
 
 router = APIRouter()
 openai_client = OpenAI(api_key=settings.openai_api_key)
@@ -39,8 +39,10 @@ def _infer_top_roles(resume_text: str, user_key: str) -> list[str]:
 def analyse(request: AnalyseRequest, authorization: str = Header(...)):
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Not authenticated.")
-    email = decode_token(authorization.removeprefix("Bearer "))
-    if not email:
+    try:
+        payload = decode_token(authorization.removeprefix("Bearer "))
+        email = payload["sub"]
+    except (ValueError, KeyError):
         raise HTTPException(status_code=401, detail="Invalid or expired token.")
 
     try:
@@ -81,6 +83,16 @@ def analyse(request: AnalyseRequest, authorization: str = Header(...)):
         existing = load_session(email) or {}
         existing["analyse"] = result.model_dump()
         save_session(email, existing)
+
+        try:
+            save_analysis(
+                email,
+                primary_role,
+                {"essential": coverage.essential, "important": coverage.important},
+                [{"skill": g.skill} for g in gaps],
+            )
+        except Exception:
+            pass
 
         return result
     except json.JSONDecodeError as e:
