@@ -8,6 +8,7 @@ export interface TieredSkill {
   name: string
   tier: 'Essential' | 'Important' | 'Nice-to-have'
   reasoning: string
+  matched_by: string[]
 }
 
 export interface GapItem {
@@ -23,7 +24,6 @@ export interface CoverageScore {
 }
 
 export interface AnalyseResponse {
-  session_id: string
   target_roles: string[]
   user_skills: ExtractedSkill[]
   tiered_role_skills: TieredSkill[]
