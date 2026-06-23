@@ -23,13 +23,21 @@ export interface CoverageScore {
   nice_to_have: string
 }
 
+export interface NextStepItem {
+  summary?: string      // one-liner: action + platform (shown by default)
+  text: string          // full detail (shown on expand)
+  skill: string
+  tier: string          // 'Essential' | 'Important' | 'Nice-to-have'
+  completed?: boolean
+}
+
 export interface AnalyseResponse {
   target_roles: string[]
   user_skills: ExtractedSkill[]
   tiered_role_skills: TieredSkill[]
   coverage_score: CoverageScore
   gaps: GapItem[]
-  next_steps: string[]
+  next_steps: NextStepItem[]
 }
 
 export interface Milestone {

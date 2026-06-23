@@ -37,7 +37,7 @@ def test_analyse_with_target_role():
     mock_tiered = [TieredSkill(name="Python", tier="Essential", reasoning="Core")]
     mock_gaps = []
     mock_coverage = CoverageScore(essential="1/1", important="0/0", nice_to_have="0/0")
-    mock_next_steps = ["Build a portfolio project"]
+    mock_next_steps = [{"text": "Build a portfolio project", "skill": "Python", "tier": "Essential"}]
 
     with patch("routers.analyse.decode_token", return_value=FAKE_TOKEN_PAYLOAD), \
          patch("routers.analyse.extract_skills", return_value=mock_user_skills), \

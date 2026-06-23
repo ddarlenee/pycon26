@@ -6,21 +6,40 @@ from services.interaction_logger import log_interaction
 
 openai_client = OpenAI(api_key=settings.openai_api_key)
 
-SYSTEM_PROMPT = """You are a career coach. Given a target role and a list of skill gaps,
-generate 3–5 concrete, specific, actionable next steps to close those gaps.
-Prioritise by gap tier (Essential > Important > Nice-to-have).
-Each step should be specific enough to act on today (e.g. name a specific course, certification, or project).
+SYSTEM_PROMPT = """You are a career coach helping someone close skill gaps for a specific role.
 
-For each step, also record which exact skill from the input gap list it addresses.
+For EACH skill gap listed, generate exactly ONE learning recommendation. Major employers (MNCs, big tech, banks) are the benchmark.
 
 Return ONLY valid JSON:
-{"next_steps": [{"text": "step description", "skill": "exact skill name from the gap list"}]}"""
+{
+  "next_steps": [
+    {
+      "summary": "Action + specific resource + platform (max 10 words)",
+      "text": "Full detail: exact course/project name, what you'll learn, why it matters for this role.",
+      "skill": "exact skill name from input",
+      "tier": "Essential|Important|Nice-to-have"
+    }
+  ]
+}
+
+Rules:
+- Generate exactly one entry per gap, in the same order as the input.
+- "skill" must match the input skill name exactly.
+- "tier" must match the input tier exactly.
+- "summary" is a short one-liner: verb + resource name + platform. Example: "Complete SQL for Data Scientists on Coursera"
+- "text" is the full explanation — one or two sentences with specifics."""
 
 
 def generate_next_steps(role: str, gaps: list[GapItem], session_id: str) -> list[dict]:
-    """Return a list of {text, skill} dicts — one per recommended next step."""
-    gap_summary = "\n".join(f"- {g.skill} ({g.tier})" for g in gaps[:8])
-    prompt = f"Target role: {role}\nSkill gaps:\n{gap_summary}"
+    """Return [{text, skill, tier}] — one step per gap, ordered Essential → Important → Nice-to-have."""
+    if not gaps:
+        return []
+
+    gap_lines = "\n".join(
+        f"- {g.skill} (tier: {g.tier})" for g in gaps
+    )
+    prompt = f"Target role: {role}\n\nSkill gaps (generate one step for each):\n{gap_lines}"
+
     response = openai_client.chat.completions.create(
         model="gpt-4o",
         messages=[
@@ -31,13 +50,33 @@ def generate_next_steps(role: str, gaps: list[GapItem], session_id: str) -> list
     )
     content = response.choices[0].message.content
     log_interaction(session_id, "next_steps", prompt, content)
-    steps = json.loads(content)["next_steps"]
+    steps = json.loads(content).get("next_steps", [])
 
-    # Normalise: accept both {text, skill} objects and plain strings (backwards compat)
+    # Normalise and verify — fall back gracefully if LLM drops a step
     result = []
     for s in steps:
         if isinstance(s, dict):
-            result.append({"text": s.get("text", ""), "skill": s.get("skill", "")})
+            text = s.get("text", "")
+            result.append({
+                "summary": s.get("summary", ""),
+                "text": text,
+                "skill": s.get("skill", ""),
+                "tier": s.get("tier", "Important"),
+            })
         else:
-            result.append({"text": str(s), "skill": ""})
+            result.append({"summary": "", "text": str(s), "skill": "", "tier": "Important"})
+
+    # If LLM returned fewer steps than inputs, pad with generic entries
+    if len(result) < len(gaps):
+        existing_skills = {r["skill"] for r in result}
+        for g in gaps:
+            if g.skill not in existing_skills:
+                fallback = f"Study and practice {g.skill} through online resources or hands-on projects."
+                result.append({
+                    "summary": f"Study {g.skill} via online resources",
+                    "text": fallback,
+                    "skill": g.skill,
+                    "tier": g.tier,
+                })
+
     return result

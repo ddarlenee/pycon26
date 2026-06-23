@@ -18,6 +18,7 @@ interface SessionState {
   setMode: (mode: 'target' | 'auto') => void
   setAnalysisResult: (result: AnalyseResponse) => void
   setProgressResult: (result: ProgressResponse) => void
+  resetProgress: () => void
   reset: () => void
 }
 
@@ -42,6 +43,7 @@ export const useSessionStore = create<SessionState>()(
       setMode: (mode) => set({ mode }),
       setAnalysisResult: (result) => set({ analysisResult: result }),
       setProgressResult: (result) => set({ progressResult: result }),
+      resetProgress: () => set({ progressResult: null }),
       reset: () => set({
         resumeText: null, selectedRole: null,
         mode: 'target', analysisResult: null, progressResult: null,

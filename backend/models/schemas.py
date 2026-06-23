@@ -25,6 +25,13 @@ class CoverageScore(BaseModel):
     important: str
     nice_to_have: str
 
+class NextStep(BaseModel):
+    summary: str = ""         # one-line: action + platform (shown by default)
+    text: str                 # full detail (shown on expand)
+    skill: str = ""
+    tier: str = "Important"   # Essential | Important | Nice-to-have
+    completed: bool = False
+
 class AnalyseRequest(BaseModel):
     resume_text: str
     target_role: Optional[str] = None  # None triggers auto-fit mode
@@ -35,7 +42,7 @@ class AnalyseResponse(BaseModel):
     tiered_role_skills: list[TieredSkill]
     coverage_score: CoverageScore
     gaps: list[GapItem]
-    next_steps: list[str]
+    next_steps: list[NextStep]
 
 class RoleSearchResponse(BaseModel):
     roles: list[str]

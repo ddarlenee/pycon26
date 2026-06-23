@@ -1,4 +1,5 @@
-import type { CoverageScore, GapItem } from '../types'
+import { useState } from 'react'
+import type { CoverageScore, GapItem, NextStepItem } from '../types'
 
 const tierColour: Record<string, string> = {
   Essential: 'text-red-600',
@@ -6,13 +7,68 @@ const tierColour: Record<string, string> = {
   'Nice-to-have': 'text-green-600',
 }
 
+const tierBadge: Record<string, string> = {
+  Essential: 'bg-red-50 text-red-700 border-red-200',
+  Important: 'bg-amber-50 text-amber-700 border-amber-200',
+  'Nice-to-have': 'bg-green-50 text-green-700 border-green-200',
+}
+
+function shortLine(step: NextStepItem): string {
+  if (step.summary) return step.summary
+  const t = step.text
+  const comma = t.indexOf(',')
+  if (comma > 20 && comma < 80) return t.slice(0, comma)
+  return t.length > 72 ? t.slice(0, 70) + '…' : t
+}
+
+function StepRow({ step, index }: { step: NextStepItem; index: number }) {
+  const [expanded, setExpanded] = useState(false)
+  const short = shortLine(step)
+  const hasMore = step.text && step.text !== short
+
+  return (
+    <li className="flex gap-2.5">
+      <span className="mt-0.5 text-xs font-bold text-gray-400 w-4 shrink-0">{index + 1}.</span>
+      <div>
+        {step.skill && (
+          <span className={`inline-block text-xs font-semibold border px-1.5 py-0.5 rounded mb-0.5 mr-1 ${tierBadge[step.tier] ?? ''}`}>
+            {step.skill}
+          </span>
+        )}
+        <p className="text-sm text-gray-700 leading-snug inline">
+          {expanded ? step.text : short}
+          {hasMore && !expanded && (
+            <button
+              onClick={() => setExpanded(true)}
+              className="ml-1 text-xs text-blue-500 hover:underline whitespace-nowrap"
+            >
+              learn more
+            </button>
+          )}
+          {expanded && (
+            <button
+              onClick={() => setExpanded(false)}
+              className="ml-1 text-xs text-gray-400 hover:underline whitespace-nowrap"
+            >
+              less
+            </button>
+          )}
+        </p>
+      </div>
+    </li>
+  )
+}
+
 interface Props {
   score: CoverageScore
   gaps: GapItem[]
-  nextSteps: string[]
+  nextSteps: NextStepItem[]
 }
 
 export default function GapSummary({ score, gaps, nextSteps }: Props) {
+  const required = nextSteps.filter((s) => s.tier === 'Essential' || s.tier === 'Important')
+  const optional = nextSteps.filter((s) => s.tier === 'Nice-to-have')
+
   return (
     <div className="space-y-4">
       <div className="bg-white border rounded-xl p-4">
@@ -51,14 +107,24 @@ export default function GapSummary({ score, gaps, nextSteps }: Props) {
         )}
       </div>
 
-      <div className="bg-white border rounded-xl p-4">
-        <h3 className="font-semibold mb-3 text-gray-800">Next Steps</h3>
-        <ol className="list-decimal list-inside space-y-2">
-          {nextSteps.map((step, i) => (
-            <li key={i} className="text-sm text-gray-700">{step}</li>
-          ))}
-        </ol>
-      </div>
+      {required.length > 0 && (
+        <div className="bg-white border rounded-xl p-4">
+          <h3 className="font-semibold mb-3 text-gray-800">Next Steps</h3>
+          <ol className="space-y-3">
+            {required.map((step, i) => <StepRow key={i} step={step} index={i} />)}
+          </ol>
+        </div>
+      )}
+
+      {optional.length > 0 && (
+        <div className="bg-white border border-dashed border-gray-200 rounded-xl p-4">
+          <h3 className="font-semibold mb-1 text-gray-600 text-sm">Optional — Nice-to-have skills</h3>
+          <p className="text-xs text-gray-400 mb-3">These aren't required but will strengthen your profile.</p>
+          <ol className="space-y-3">
+            {optional.map((step, i) => <StepRow key={i} step={step} index={i} />)}
+          </ol>
+        </div>
+      )}
     </div>
   )
 }

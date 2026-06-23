@@ -90,7 +90,7 @@ def analyse(request: AnalyseRequest, authorization: str = Header(...)):
                 primary_role,
                 {"essential": coverage.essential, "important": coverage.important, "nice_to_have": coverage.nice_to_have},
                 [{"skill": g.skill, "tier": g.tier} for g in gaps],
-                next_steps=next_steps,
+                next_steps=[s.model_dump() for s in result.next_steps],
                 user_skills=[s.name for s in user_skills],
             )
         except Exception:

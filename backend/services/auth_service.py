@@ -85,17 +85,21 @@ def save_analysis(
         else:
             structured_gaps.append({"skill": str(g), "tier": "Important"})
 
-    # Normalise next_steps to [{text, skill, completed}]
+    # Normalise next_steps to [{text, skill, tier, completed}]
     structured_steps = []
     for s in (next_steps or []):
+        if hasattr(s, "model_dump"):
+            s = s.model_dump()
         if isinstance(s, dict):
             structured_steps.append({
+                "summary": s.get("summary", ""),
                 "text": s.get("text", ""),
                 "skill": s.get("skill", ""),
+                "tier": s.get("tier", "Important"),
                 "completed": bool(s.get("completed", False)),
             })
         else:
-            structured_steps.append({"text": str(s), "skill": "", "completed": False})
+            structured_steps.append({"summary": "", "text": str(s), "skill": "", "tier": "Important", "completed": False})
 
     entry = {
         "id": str(uuid.uuid4()),
@@ -177,13 +181,8 @@ def complete_step(email: str, entry_id: str, step_index: int) -> dict | None:
                     user_skills.remove(skill)
                     entry["user_skills"] = user_skills
 
-                # Find what tier this skill belongs to by scanning next_steps
-                gap_tier = None
-                # All steps for this skill share the same skill name; use any to find tier.
-                # We don't store tier in step, so try to find it from the original gaps or
-                # infer from other completed steps. Best we can do: use Important as fallback.
-                gap_tier = "Important"
-                # Re-add to gaps
+                # Use the tier stored on the step itself (added in new format)
+                gap_tier = step.get("tier", "Important")
                 gaps.append({"skill": skill, "tier": gap_tier})
                 entry["gaps"] = gaps
 

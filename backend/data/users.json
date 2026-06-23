@@ -219,10 +219,26 @@
           "Data Governance"
         ],
         "next_steps": [
-          "Enroll in the 'Financial Accounting - Foundations' course on Coursera offered by the University of Illinois to develop skills in Financial Statements Review.",
-          "Take the 'Regulatory Compliance Specialization' on Coursera to understand the regulatory compliance frameworks and requirements.",
-          "Participate in a workshop or online seminar on business planning, such as the 'Strategic Business Planning Workshop' offered by the American Management Association.",
-          "Find free resources or guides online for SOP development and start drafting a sample SOP relevant to account operations.",
+          {
+            "text": "Enroll in the 'Financial Accounting - Foundations' course on Coursera offered by the University of Illinois to develop skills in Financial Statements Review.",
+            "skill": "",
+            "completed": true
+          },
+          {
+            "text": "Take the 'Regulatory Compliance Specialization' on Coursera to understand the regulatory compliance frameworks and requirements.",
+            "skill": "",
+            "completed": true
+          },
+          {
+            "text": "Participate in a workshop or online seminar on business planning, such as the 'Strategic Business Planning Workshop' offered by the American Management Association.",
+            "skill": "",
+            "completed": true
+          },
+          {
+            "text": "Find free resources or guides online for SOP development and start drafting a sample SOP relevant to account operations.",
+            "skill": "",
+            "completed": true
+          },
           "Explore LinkedIn Learning for courses or resources on business requirements mapping, such as 'Business Analysis Foundations: Business Process Modeling.'"
         ],
         "user_skills": [
@@ -274,11 +290,31 @@
           "Stakeholder Management"
         ],
         "next_steps": [
-          "Enroll in the 'Data Strategy Specialization' on Coursera by the University of Virginia to gain insights on formulating and implementing a data strategy, including case studies and practical applications.",
-          "Take the 'Computational Modeling and Data Science\u2019 course offered by MIT on edX to build a strong foundation in computational modeling techniques applicable to AI and machine learning projects.",
-          "Complete the 'Pattern Recognition and Machine Learning\u2019 course on Coursera provided by the Lule\u00e5 University of Technology to dive into core techniques used to identify patterns in data.",
-          "Join the 'Data Strategy & Design for AI' online workshop by DataCamp to understand how to design data pipelines and architectures effectively for machine learning workflows.",
-          "Attend the 'Emerging Technologies and Intelligent Systems' seminar series from IEEE Explore for a deep dive into current trends and future directions in AI technologies."
+          {
+            "text": "Enroll in the 'Data Strategy Specialization' on Coursera by the University of Virginia to gain insights on formulating and implementing a data strategy, including case studies and practical applications.",
+            "skill": "",
+            "completed": true
+          },
+          {
+            "text": "Take the 'Computational Modeling and Data Science\u2019 course offered by MIT on edX to build a strong foundation in computational modeling techniques applicable to AI and machine learning projects.",
+            "skill": "",
+            "completed": true
+          },
+          {
+            "text": "Complete the 'Pattern Recognition and Machine Learning\u2019 course on Coursera provided by the Lule\u00e5 University of Technology to dive into core techniques used to identify patterns in data.",
+            "skill": "",
+            "completed": true
+          },
+          {
+            "text": "Join the 'Data Strategy & Design for AI' online workshop by DataCamp to understand how to design data pipelines and architectures effectively for machine learning workflows.",
+            "skill": "",
+            "completed": true
+          },
+          {
+            "text": "Attend the 'Emerging Technologies and Intelligent Systems' seminar series from IEEE Explore for a deep dive into current trends and future directions in AI technologies.",
+            "skill": "",
+            "completed": true
+          }
         ],
         "user_skills": [
           "Full-stack Web Development",
