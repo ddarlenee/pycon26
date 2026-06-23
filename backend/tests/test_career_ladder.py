@@ -65,3 +65,21 @@ def test_build_career_ladder_empty_ladder_raises():
             with patch("services.career_ladder.skillsfuture.get_skills_for_role", return_value=[]):
                 with pytest.raises(ValueError, match="Career ladder inference returned no results"):
                     build_career_ladder(req, "test-session")
+
+def test_career_next_step_model():
+    from models.schemas import CareerNextStep
+    step = CareerNextStep(skill="MLOps", action="Complete MLOps Fundamentals on Coursera", summary="MLOps Fundamentals — Coursera")
+    assert step.skill == "MLOps"
+    assert step.action == "Complete MLOps Fundamentals on Coursera"
+    assert step.summary == "MLOps Fundamentals — Coursera"
+
+def test_career_rung_next_steps_defaults_empty():
+    from models.schemas import CareerRung, Milestone
+    rung = CareerRung(
+        role="Senior Data Analyst",
+        transferability_score=72,
+        skill_delta=["MLOps"],
+        why_good_fit="Good fit",
+        milestones=[],
+    )
+    assert rung.next_steps == []

@@ -52,12 +52,18 @@ class Milestone(BaseModel):
     description: str
     skill_focus: str
 
+class CareerNextStep(BaseModel):
+    skill: str       # matches a skill_delta entry exactly
+    action: str      # full actionable sentence, e.g. "Complete MLOps Fundamentals on Coursera"
+    summary: str = ""  # ≤8-word version, e.g. "MLOps Fundamentals — Coursera"
+
 class CareerRung(BaseModel):
     role: str
     transferability_score: int  # 0–100
     skill_delta: list[str]
     why_good_fit: str
     milestones: list[Milestone]
+    next_steps: list[CareerNextStep] = []
 
 class ProgressRequest(BaseModel):
     current_role: str
