@@ -1,0 +1,54 @@
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+import type { AnalyseResponse, ProgressResponse } from '../types'
+
+interface SessionState {
+  token: string | null
+  userEmail: string | null
+  userName: string | null
+  resumeText: string | null
+  selectedRole: string | null
+  mode: 'target' | 'auto'
+  analysisResult: AnalyseResponse | null
+  progressResult: ProgressResponse | null
+  setAuth: (token: string, email: string, name?: string) => void
+  logout: () => void
+  setResumeText: (text: string) => void
+  setSelectedRole: (role: string) => void
+  setMode: (mode: 'target' | 'auto') => void
+  setAnalysisResult: (result: AnalyseResponse) => void
+  setProgressResult: (result: ProgressResponse) => void
+  resetProgress: () => void
+  reset: () => void
+}
+
+export const useSessionStore = create<SessionState>()(
+  persist(
+    (set) => ({
+      token: null,
+      userEmail: null,
+      userName: null,
+      resumeText: null,
+      selectedRole: null,
+      mode: 'target',
+      analysisResult: null,
+      progressResult: null,
+      setAuth: (token, email, name) => set({ token, userEmail: email, userName: name ?? null }),
+      logout: () => set({
+        token: null, userEmail: null, userName: null, resumeText: null,
+        selectedRole: null, mode: 'target', analysisResult: null, progressResult: null,
+      }),
+      setResumeText: (text) => set({ resumeText: text }),
+      setSelectedRole: (role) => set({ selectedRole: role }),
+      setMode: (mode) => set({ mode }),
+      setAnalysisResult: (result) => set({ analysisResult: result }),
+      setProgressResult: (result) => set({ progressResult: result }),
+      resetProgress: () => set({ progressResult: null }),
+      reset: () => set({
+        resumeText: null, selectedRole: null,
+        mode: 'target', analysisResult: null, progressResult: null,
+      }),
+    }),
+    { name: 'skills-analyser-auth', partialize: (s) => ({ token: s.token, userEmail: s.userEmail, userName: s.userName }) }
+  )
+)
