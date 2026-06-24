@@ -41,13 +41,13 @@ These documents reflect the AI-human design loop: the human defined goals and co
 Soon Zi Ni Darlene
 - ideation
 - implementation of baseline code
-- your skills section
-- role requirements 
-- career stage gating
-- role readiness 
-- coverage score
-- extraction of pdf to text implementation
-- code testing
+- resume parsing
+- tiered gap analysis
+- evidence-backed skills
+- role readiness bar
+- career progression ladder
+- history & progress tracking
+- my skills page
 
 ALicia Goh Jin Bao
 - semantic gap matching
