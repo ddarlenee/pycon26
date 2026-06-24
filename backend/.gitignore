@@ -4,6 +4,9 @@ sessions/*
 !sessions/.gitkeep
 logs/*
 !logs/.gitkeep
+!logs/sample/
+logs/sample/*.jsonl
+!logs/sample/sample-session.jsonl
 __pycache__/
 .pytest_cache/
 *.pyc
