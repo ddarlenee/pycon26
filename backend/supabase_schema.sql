@@ -52,3 +52,6 @@ CREATE POLICY "users_own_history" ON analysis_history
 
 CREATE POLICY "users_own_logs" ON interaction_logs
   FOR ALL USING (user_id = auth.uid());
+
+-- sessions has no user_id FK (keyed by email), so no user-scoped policy is possible.
+-- RLS blocks anon access; the backend's service role key is the only access path.
