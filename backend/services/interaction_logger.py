@@ -1,19 +1,21 @@
-import json
 from datetime import datetime, timezone
-from pathlib import Path
-from config import settings
+from services.supabase_client import get_supabase
+
 
 def log_interaction(session_id: str, call_type: str, prompt: str, response: str) -> None:
-    log_dir = Path(settings.log_dir)
-    log_dir.mkdir(exist_ok=True)
-    entry = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+    sb = get_supabase()
+    profile = sb.table("user_profiles").select("id").eq("email", session_id).execute()
+    user_id = profile.data[0]["id"] if profile.data else None
+
+    sb.table("interaction_logs").insert({
+        "user_id": user_id,
         "session_id": session_id,
-        "type": call_type,
-        "model": "gpt-4o",
-        "prompt": prompt,
-        "response": response,
-    }
-    log_path = log_dir / f"{session_id}.jsonl"
-    with open(log_path, "a", encoding="utf-8") as f:
-        f.write(json.dumps(entry) + "\n")
+        "event": {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "session_id": session_id,
+            "type": call_type,
+            "model": "gpt-4o",
+            "prompt": prompt,
+            "response": response,
+        },
+    }).execute()
