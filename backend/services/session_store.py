@@ -1,19 +1,21 @@
-import json
-from pathlib import Path
+from datetime import datetime, timezone
+from services.supabase_client import get_supabase
 
-def _session_path(session_id: str) -> Path:
-    sessions_dir = Path("sessions")
-    sessions_dir.mkdir(exist_ok=True)
-    return sessions_dir / f"{session_id}.json"
 
 def save_session(session_id: str, data: dict) -> None:
-    path = _session_path(session_id)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    get_supabase().table("sessions").upsert({
+        "session_id": session_id,
+        "data": data,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }).execute()
+
 
 def load_session(session_id: str) -> dict | None:
-    path = _session_path(session_id)
-    if not path.exists():
-        return None
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    res = (
+        get_supabase()
+        .table("sessions")
+        .select("data")
+        .eq("session_id", session_id)
+        .execute()
+    )
+    return res.data[0]["data"] if res.data else None
