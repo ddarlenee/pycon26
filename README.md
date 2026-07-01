@@ -59,8 +59,8 @@ FillTheGap connects your resume to Singapore's SkillsFuture dataset (https://job
 | AI / LLM | OpenAI GPT-4o (skill extraction, gap matching, next steps, career progression) |
 | Skills dataset | SkillsFuture Singapore (loaded from Excel via pandas) |
 | PDF parsing | PyMuPDF |
-| Auth | JWT (`python-jose`) + bcrypt password hashing (`passlib`) |
-| Data store | JSON flat-file (`data/users.json`) |
+| Auth | [Supabase Auth](https://supabase.com/auth) (email/password) + JWT tokens (24h expiry) |
+| Database | [Supabase PostgreSQL](https://supabase.com/database) (4 tables: user_profiles, analysis_history, sessions, interaction_logs) |
 | Testing | pytest + httpx |
 
 ### Frontend
@@ -84,8 +84,7 @@ FillTheGap connects your resume to Singapore's SkillsFuture dataset (https://job
 pycon26/
 ├── backend/
 │   ├── data/
-│   │   ├── skillsfuture_loader.py   # loads the SkillsFuture Excel dataset
-│   │   └── users.json               # user accounts + history (flat-file DB)
+│   │   └── skillsfuture_loader.py   # loads the SkillsFuture Excel dataset
 │   ├── models/
 │   │   └── schemas.py               # Pydantic request/response models
 │   ├── routers/
@@ -99,8 +98,12 @@ pycon26/
 │   │   ├── skill_ranker.py          # GPT-4o: rank role skills by tier
 │   │   ├── gap_analyser.py          # GPT-4o: match user skills to role requirements
 │   │   ├── next_steps.py            # GPT-4o: generate actionable next steps per gap
-│   │   ├── auth_service.py          # user store, JWT, history persistence
-│   │   └── session_store.py         # in-memory session cache
+│   │   ├── auth_service.py          # Supabase Auth + JWT, user profile + history persistence
+│   │   ├── session_store.py         # Supabase PostgreSQL session cache
+│   │   ├── interaction_logger.py    # Supabase PostgreSQL LLM audit log
+│   │   └── supabase_client.py       # Supabase client singleton
+│   ├── supabase_schema.sql          # PostgreSQL table definitions + RLS policies
+│   ├── config.py                    # Settings (SUPABASE_URL, SUPABASE_SERVICE_KEY, etc.)
 │   ├── main.py
 │   └── requirements.txt
 │
@@ -126,6 +129,56 @@ pycon26/
 
 ---
 
+## Database Schema
+
+All data is stored in Supabase PostgreSQL. Row-level security (RLS) is enabled on all tables; the backend uses a service role key which bypasses RLS for admin operations.
+
+### Tables
+
+| Table | Purpose | Key Fields |
+|-------|---------|-----------|
+| `user_profiles` | Extends Supabase Auth; stores display name | `id` (UUID, FK auth.users), `email`, `name`, `created_at` |
+| `analysis_history` | One row per gap analysis run | `id`, `user_id`, `role`, `coverage` (JSONB), `gaps` (JSONB), `next_steps` (JSONB), `user_skills` (JSONB), `transferability_score`, `created_at` |
+| `sessions` | Active session state blobs | `session_id` (TEXT, primary key), `data` (JSONB), `updated_at` |
+| `interaction_logs` | LLM call audit trail (every GPT-4o request/response) | `id`, `user_id` (nullable), `session_id`, `event` (JSONB with timestamp, prompt, response, model), `created_at` |
+
+See `backend/supabase_schema.sql` for full SQL definition and RLS policies.
+
+---
+
+## Authentication Flow
+
+1. **Register**: User submits email + password → Supabase Auth creates account → app inserts user profile into `user_profiles` table
+2. **Login**: Email + password → Supabase Auth validates → app creates JWT token (24h expiry) → frontend stores token
+3. **Sessions**: Backend maintains session blobs in `sessions` table for stateful data (keyed by session_id, not user_id)
+4. **Logout**: Frontend discards token; backend can invalidate session if needed
+
+All authentication requests go through the backend (no direct Supabase client in frontend).
+
+### Architecture
+
+```
+Frontend (React)
+    │ (HTTP)
+    ▼
+Backend (FastAPI)
+    │ (Supabase SDK + service role key)
+    ▼
+Supabase PostgreSQL + Auth
+    │
+    ├─ user_profiles (user display names)
+    ├─ analysis_history (gap analyses, next steps, progress)
+    ├─ sessions (session state)
+    └─ interaction_logs (LLM audit trail)
+```
+
+- **Frontend never talks to Supabase directly**; all queries go through the backend API
+- **Backend uses service role key** to read/write all tables (bypasses RLS)
+- **LLM calls are logged** to `interaction_logs` for audit + cost tracking
+- **Session state is persistent** across requests (stored in `sessions` table)
+
+---
+
 ## Getting Started
 
 ### Prerequisites
@@ -133,7 +186,18 @@ pycon26/
 - Python 3.12+
 - Node.js 20+
 - An OpenAI API key (`gpt-4o` access)
-- SkillsFuture dataset Excel file (place in `backend/data/`)
+- A Supabase project with PostgreSQL database
+- SkillsFuture dataset Excel file (place in `backend/data/skillsfuture/`)
+
+### Supabase Setup
+
+1. Create a free project at [supabase.com](https://supabase.com)
+2. Copy your **Project URL** and **Service Role Key** from the Supabase dashboard
+3. Open the **SQL Editor** in Supabase and run the schema:
+   ```sql
+   -- Copy the contents of backend/supabase_schema.sql and execute in Supabase SQL editor
+   ```
+   This creates: `user_profiles`, `analysis_history`, `sessions`, `interaction_logs` tables with RLS policies
 
 ### Backend
 
@@ -144,7 +208,9 @@ source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 # Create .env
-echo "OPENAI_API_KEY=sk-..." > .env
+echo "SUPABASE_URL=https://xxx.supabase.co" > .env
+echo "SUPABASE_SERVICE_KEY=sbp_..." >> .env
+echo "OPENAI_API_KEY=sk-..." >> .env
 echo "JWT_SECRET=your-secret-here" >> .env
 
 uvicorn main:app --reload --port 8000
@@ -216,8 +282,10 @@ When a user advances to the next career stage via the ladder, the analysis **doe
 
 | Variable | Description |
 |---|---|
+| `SUPABASE_URL` | Supabase project URL (e.g., `https://xxx.supabase.co`) |
+| `SUPABASE_SERVICE_KEY` | Service role key for backend (keep secret, never expose to frontend) |
 | `OPENAI_API_KEY` | OpenAI API key (GPT-4o) |
-| `JWT_SECRET` | Secret for signing JWTs |
+| `JWT_SECRET` | Secret for signing JWTs (default: `change-me-in-production`) |
 | `JWT_EXPIRE_HOURS` | Token expiry in hours (default: 24) |
 
 ---
